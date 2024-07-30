@@ -3,84 +3,84 @@ import math
 import random
 import time
 from datetime import timedelta
-
-from selenium.webdriver.common.keys import Keys
-from RPA.Browser.Selenium import Selenium
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException
 
-import requests
+import logging
 
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
 
+
+# Criação de um logger
+logger = logging.getLogger("RPA-BROWSER")
 
 class Browser:
 
-    def __init__(self, headless=False, proxy=None) -> None:
-        self.browser = Selenium()
+    def __init__(self, headless=False, proxy=None, chrome_driver_path='/usr/bin/chromedriver', page_load_timeout=15) -> None:
         self.proxy = proxy
+        self.headless = headless
+        self.page_load_timeout = page_load_timeout
+        self.driver = None
+        self.chrome_driver_path = chrome_driver_path
+        self.set_webdriver()
 
-#       @TODO PUT THIS IN CONFIG FILE
-        self.options = Options()
-        self.options.binary_location = "/usr/bin/google-chrome-stable"
-        self.options.add_argument(
-            'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
-        self.options.add_argument('--disable-gpu')
-        self.options.add_argument('--disable-dev-shm-usage')
-        self.options.add_argument('--no-sandbox')
-        self.options.add_argument('--disable-blink-features=AutomationControlled')
-        self.options.add_experimental_option('excludeSwitches', ['enable-automation'])
-        self.options.add_experimental_option('useAutomationExtension', False)
-        self.options.add_argument('--window-size=1920,1080')
-        self.options.add_argument('--disable-infobars')
-        self.options.add_argument('--disable-extensions')
-        self.options.add_argument('--remote-debugging-port=9222')
-
+    def set_chrome_options(self):
+        options = Options()
+        if self.headless:
+            options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-gpu")
+        options.add_argument('--disable-web-security')
+        options.add_argument("--start-maximized")
+        options.add_argument('--remote-debugging-port=9222')
+        options.add_experimental_option("excludeSwitches", ["enable-logging"])
         if self.proxy:
-            self.options.add_argument(f'--proxy-server={self.proxy}')
+            options.add_argument(f'--proxy-server={self.proxy}')
+        return options
 
-        if not headless:
-            logger.info(f"Opening Browser without headless mode.")
-            self.browser.open_available_browser(
-                url=None,
-                options=self.options,
-                maximized=True)
-            return
-
-        logger.info(f"Opening Browser in headless mode.")
-        self.options.add_argument('--headless')
-        self.browser.open_available_browser(
-            url=None,
-            options=self.options,
-            maximized=True)
-        return
+    def set_webdriver(self):
+        options = self.set_chrome_options()
+        service = Service(self.chrome_driver_path)
+        self.driver = webdriver.Chrome(service=service, options=options)
+        self.driver.set_page_load_timeout(self.page_load_timeout)
 
     @staticmethod
     def wait(seconds=None):
         if seconds is None:
             seconds = random.uniform(2, 5)
-        logger.info(f"Waiting {math.ceil(seconds)} seconds due detectability purposes...")
+        logger.info(f"Waiting {math.ceil(seconds)} seconds for detectability purposes...")
         time.sleep(seconds)
         logger.info("Wait finished!")
 
     def navigate(self, url):
-        logger.info(f"Attempting to redirect to {url}.")
-
         self.wait()
         try:
-            self.browser.go_to(url=url)
-            logger.info(f"Redirects successfully to {url}.")
-            return
-        except Exception as e:
-            logger.error(f"Error during navigation attempt: {e}")
-            raise TimeoutError(
-                f"Failed to redirect to {url}\n{e}")
+            logger.info(f"Attempting to redirect to {url}.")
+            t = time.time()
+            self.driver.get(url)
+            logger.info(f"Redirects successfully to {url}. Time taken: {time.time() - t} seconds.")
+        except TimeoutException:
+            self.driver.execute_script("window.stop();")
+            logger.warning(f"Page load timeout exceeded. Stopped loading the page: {url}")
 
-    def wait_for_element(self, selector, timeout=timedelta(seconds=10)):
+    def wait_for_element(self, selector, by=By.CSS_SELECTOR, timeout=timedelta(seconds=10)) -> webdriver.remote.webelement.WebElement:
+        #@TODO TREAT NO SUCH ELEMENT EXCEPTION
         timeout_seconds = timeout.total_seconds()
-        logger.info(f"Waiting for {selector} to become visible")
+        logger.info(f"Waiting for {selector} to become visible by {by}")
         try:
-            self.browser.wait_until_element_is_visible(selector, timeout=timeout_seconds)
-            element = self.browser.find_element(selector)
+            element = None
+            element = self.driver.find_element(by, selector)
             logger.info(f"{selector} is now visible.")
             return element
         except Exception as e:
@@ -88,62 +88,31 @@ class Browser:
             logger.error(f"Timeout waiting for element: {selector}. Error: {e}")
             raise TimeoutError(f"Timeout waiting for element: {selector}")
 
-    def take_screenshot(self, screenshot_name="screenshot"):
-        self.browser.capture_page_screenshot(f"{screenshot_name}.png")
-
-    def find_make_search_visible_button(self):
-        search_input = self.wait_for_element("css:[data-element='search-button']")
-        if not search_input:
-            logger.error("Button to make search visible not found.")
-            self.take_screenshot(f"{__name__}")
-            return None
-        return search_input
-
-    def make_search_field_visible(self):
-        search_box_button = self.find_make_search_visible_button()
-        self.browser.click_button(search_box_button)
-
-    def find_search_input_field(self):
-        search_field = self.wait_for_element("css:[data-element='search-form-input']")
-        if not search_field:
-            logger.error("Search field  not found.")
-            self.take_screenshot(f"{__name__}")
-            return None
-        return search_field
-
-    def find_search_submit_button(self):
-        search_button = self.wait_for_element("css:[data-element='search-submit-button']")
-        if not search_button:
-            logger.error("Search button not found.")
-            self.take_screenshot(f"{__name__}")
-            return None
-        return search_button
-
-    def submit_search_form(self):
-        search_button = self.find_search_submit_button()
-        self.browser.click_button(search_button)
-        logger.info("Search button were pressed.")
-
-    def search_for_keyword(self, keyword):
+    def wait_for_elements(self, selector, by=By.CSS_SELECTOR, timeout=timedelta(seconds=10)) -> webdriver.remote.webelement.WebElement:
+        # @TODO TREAT NO SUCH ELEMENT EXCEPTION
+        timeout_seconds = timeout.total_seconds()
+        logger.info(f"Waiting for elements in {selector} become visible by {by}")
         try:
-            self.make_search_field_visible()
-            search_box = self.find_search_input_field()
-            if not search_box:
-                logger.error("Search box not found, cannot proceed with search.")
-                self.take_screenshot(f"{__name__}")
-                return
-            for char in keyword:
-                search_box.send_keys(char)
-                self.wait(seconds=random.uniform(0.1, 0.3))
-            # search_box.send_keys(Keys.ENTER)
-            logger.info(f"Keyword '{keyword}' is in the search input field.")
-        except TimeoutError:
-            logger.error("Search input not found within the timeout period.")
-            self.browser.capture_page_screenshot("screenshot.png")
+            element = None
+            element = self.driver.find_elements(by, selector)
+            logger.info(f"Elements in {selector} are now visibles.")
+            return element
         except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}")
-            self.browser.capture_page_screenshot("screenshot.png")
+            self.take_screenshot(f"{__name__}")
+            logger.error(f"Timeout waiting for element: {selector}. Error: {e}")
+            raise TimeoutError(f"Timeout waiting for element: {selector}")
 
-    def search(self, keyword):
-        self.search_for_keyword(keyword)
-        self.submit_search_form()
+    def take_screenshot(self, screenshot_name="screenshot"):
+        self.driver.save_screenshot(f"{screenshot_name}.png")
+
+    def driver_quit(self):
+        if self.driver:
+            self.driver.quit()
+
+    def full_page_screenshot(self, url):
+        self.driver.get(url)
+        page_width = self.driver.execute_script('return document.body.scrollWidth')
+        page_height = self.driver.execute_script('return document.body.scrollHeight')
+        self.driver.set_window_size(page_width, page_height)
+        self.driver.save_screenshot('screenshot.png')
+        self.driver.quit()
