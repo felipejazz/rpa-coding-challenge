@@ -27,8 +27,7 @@ def main():
     la_landing_page.search("corinthians")
 
     la_search_page = LASearchPage(la_landing_page)
-    la_search_page.find_sort_button()
-    la_search_page.get_news()
+    la_search_page.scrap_news()
 
 
 

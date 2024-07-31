@@ -1,0 +1,5 @@
+pendulum==2.1.2
+rpaframework==28.6.1
+openpyxl==3.1.5
+requests==2.32.3
+pytest==8.3.2
