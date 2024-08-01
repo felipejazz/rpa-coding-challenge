@@ -28,7 +28,7 @@ class LASearchPage:
 
     def get_news(self, month_range=0, subscription_closed=False):
         news_data = []
-        total_news_count = 0  # Inicializa o contador global de notícias
+        total_news_count = 0
 
         while True:
             try:
@@ -41,7 +41,7 @@ class LASearchPage:
                     logger.info("No more news items found.")
                     break
 
-                # Identifica o índice da última notícia da página atual
+
                 last_index = len(li_elements) - 1
 
                 for index in range(len(li_elements)):
@@ -94,7 +94,7 @@ class LASearchPage:
                         "has_money": has_money
                     })
 
-                    total_news_count += 1  # Incrementa o contador global de notícias
+                    total_news_count += 1
 
                     logger.info(f"News {total_news_count}: {title}")
                     print(f"News: {total_news_count}:")

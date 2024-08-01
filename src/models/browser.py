@@ -110,7 +110,6 @@ class Browser:
             )
             logger.info(f"{name_to_log} is now visible.")
             self.scroll_to_element(element)
-            # Ensure the element is clickable
             logger.info(f"Waiting for {name_to_log} to become clickable")
             element = self.wait().until(
                 EC.element_to_be_clickable((by, selector))
