@@ -49,7 +49,8 @@ class LALandingPage:
     def make_search_field_visible(self):
         search_box_button = self.find_make_search_visible_button()
         self.browser.scroll_to_element(search_box_button)
-        search_box_button.click()
+        self.browser.click(search_box_button)
+
 
     def find_search_input_field(self):
         try:
@@ -95,7 +96,7 @@ class LALandingPage:
     def submit_search_form(self):
         search_button = self.find_search_submit_button()
         self.browser.scroll_to_element(search_button)
-        search_button.click()
+        self.browser.click(search_button)
         logger.info("Search button was pressed.")
 
     def search_for_keyword(self, keyword):

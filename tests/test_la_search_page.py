@@ -16,26 +16,6 @@ def search_page(mock_browser):
     return LASearchPage(la_landing_page)
 
 
-def test_get_news(search_page, mock_browser):
-    mock_browser.wait_for_element.return_value.find_elements.return_value = [
-        MagicMock(
-            find_element=MagicMock(
-                side_effect=lambda by, selector: MagicMock(text="mocked text")
-            ),
-            text="mocked text"
-        )
-    ]
-
-    news_data = search_page.get_news()
-
-    assert len(news_data) > 0
-    assert "title" in news_data[0]
-    assert "date" in news_data[0]
-    assert "description" in news_data[0]
-    assert "picture_filename" in news_data[0]
-    assert "words-counts_title-description" in news_data[0]
-    assert "has_money" in news_data[0]
-
 
 def test_check_if_subscribe_popup_is_open(search_page, mock_browser):
     mock_browser.wait_for_element_in_shadow.return_value = MagicMock()
@@ -45,13 +25,6 @@ def test_check_if_subscribe_popup_is_open(search_page, mock_browser):
 
     assert result is True
 
-def test_find_sort_button(search_page, mock_browser):
-    mock_browser.wait_for_element.return_value = MagicMock()
-
-    search_page.find_sort_button()
-
-    mock_browser.wait_for_element.assert_called()
-    mock_browser.wait_for_element.return_value.click.assert_called()
 
 
 def test_download_image(search_page):

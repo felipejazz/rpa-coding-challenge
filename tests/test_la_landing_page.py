@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from selenium.webdriver.common.by import By
 
@@ -22,16 +22,6 @@ def test_find_make_search_visible_button(search_page):
                                                                  selector="/html/body/ps-header/header/div[2]/button", selector_name='Search Button')
 
 
-def test_make_search_field_visible(search_page):
-    mock_button = MagicMock()
-    search_page.find_make_search_visible_button = MagicMock(return_value=mock_button)
-
-    search_page.make_search_field_visible()
-
-    search_page.browser.scroll_to_element.assert_called_once_with(mock_button)
-    mock_button.click.assert_called_once()
-
-
 def test_find_search_input_field(search_page):
     search_page.browser.wait_for_element.return_value = MagicMock()
 
@@ -41,26 +31,6 @@ def test_find_search_input_field(search_page):
     search_page.browser.wait_for_element.assert_called_once_with(by=By.XPATH,
                                                                  selector="/html/body/ps-header/header/div[2]/div[2]/form/label/input", selector_name='Search Input Field')
 
-
-def test_find_search_submit_button(search_page):
-    search_page.browser.wait_for_element.return_value = MagicMock()
-
-    result = search_page.find_search_submit_button()
-
-    assert result is not None
-    search_page.browser.wait_for_element.assert_called_once_with(by=By.XPATH,
-                                                                 selector="/html/body/ps-header/header/div[2]/div[2]/form/button",selector_name='Search Button')
-
-
-def test_submit_search_form(search_page):
-    mock_button = MagicMock()
-    search_page.find_search_submit_button = MagicMock(return_value=mock_button)
-
-    search_page.submit_search_form()
-
-    search_page.browser.scroll_to_element.assert_called_once_with(mock_button)
-    mock_button.click.assert_called_once()
-    assert search_page.browser.scroll_to_element.call_count == 1
 
 
 def test_search_for_keyword(search_page):

@@ -46,6 +46,7 @@ class Browser:
         options.add_argument("--start-maximized")
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--remote-debugging-port=9222')
+        # options.add_experimental_option("detach", True)
         options.add_experimental_option("excludeSwitches", ["enable-logging"])
         options.add_argument(f'--window-size={self.window_size[0]},{self.window_size[1]}')
         if self.proxy:
@@ -81,6 +82,9 @@ class Browser:
             self.driver.execute_script("window.stop();")
             logger.warning(f"Page load timeout exceeded. Stopped loading the page: {url}")
 
+    def click(self, selector):
+        self.driver.execute_script("arguments[0].click();", selector)
+
     def wait_for_element(self, selector, by=By.CSS_SELECTOR,
                          selector_name=None) -> webdriver.remote.webelement.WebElement:
         name_to_log = selector_name if selector_name else selector
@@ -96,6 +100,31 @@ class Browser:
         except TimeoutException:
             logger.error(f"Timeout waiting for element: {name_to_log}")
             raise TimeoutError(f"Timeout waiting for element: {name_to_log}")
+
+    def wait_for_element_be_clickable(self, selector, by=By.CSS_SELECTOR, selector_name=None):
+        name_to_log = selector_name if selector_name else selector
+        logger.info(f"Waiting for {name_to_log} to become visible by {by}")
+        try:
+            element = self.wait().until(
+                EC.visibility_of_element_located((by, selector))
+            )
+            logger.info(f"{name_to_log} is now visible.")
+            self.scroll_to_element(element)
+            # Ensure the element is clickable
+            logger.info(f"Waiting for {name_to_log} to become clickable")
+            element = self.wait().until(
+                EC.element_to_be_clickable((by, selector))
+            )
+            logger.info(f"{name_to_log} is now clickable.")
+            return element
+        except NoSuchElementException:
+            raise NoSuchElementException(f"No such element waiting for element: {name_to_log}")
+        except TimeoutException:
+            logger.error(f"Timeout waiting for element: {name_to_log}")
+            raise TimeoutError(f"Timeout waiting for element: {name_to_log}")
+        except ElementClickInterceptedException:
+            logger.error(f"Element click intercepted: {name_to_log}")
+            raise ElementClickInterceptedException(f"Element click intercepted: {name_to_log}")
 
     def retry_action(self, action, retries=3, delay=1):
         for attempt in range(retries):
@@ -135,12 +164,6 @@ class Browser:
     def scroll_to_element(self, element):
         self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
 
-    @staticmethod
-    def click(selector, if_intercepted):
-        try:
-            selector.click()
-        except ElementClickInterceptedException:
-            if_intercepted()
 
     def wait_for_elements(self, selector, by=By.CSS_SELECTOR, selector_name=None) -> list:
         logger.info(f"Waiting for elements in {selector if selector_name is None else selector_name} to become visible by {by}")
