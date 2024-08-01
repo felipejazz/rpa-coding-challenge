@@ -19,7 +19,7 @@ def test_find_make_search_visible_button(search_page):
 
     assert result is not None
     search_page.browser.wait_for_element.assert_called_once_with(by=By.XPATH,
-                                                                 selector="/html/body/ps-header/header/div[2]/button")
+                                                                 selector="/html/body/ps-header/header/div[2]/button", selector_name='Search Button')
 
 
 def test_make_search_field_visible(search_page):
@@ -39,7 +39,7 @@ def test_find_search_input_field(search_page):
 
     assert result is not None
     search_page.browser.wait_for_element.assert_called_once_with(by=By.XPATH,
-                                                                 selector="/html/body/ps-header/header/div[2]/div[2]/form/label/input")
+                                                                 selector="/html/body/ps-header/header/div[2]/div[2]/form/label/input", selector_name='Search Input Field')
 
 
 def test_find_search_submit_button(search_page):
@@ -49,7 +49,7 @@ def test_find_search_submit_button(search_page):
 
     assert result is not None
     search_page.browser.wait_for_element.assert_called_once_with(by=By.XPATH,
-                                                                 selector="/html/body/ps-header/header/div[2]/div[2]/form/button")
+                                                                 selector="/html/body/ps-header/header/div[2]/div[2]/form/button",selector_name='Search Button')
 
 
 def test_submit_search_form(search_page):
@@ -70,7 +70,7 @@ def test_search_for_keyword(search_page):
     search_page.search_for_keyword("test")
 
     search_page.browser.scroll_to_element(mock_search_box)
-    assert mock_search_box.send_keys.call_count == 4  # Assuming keyword length is 4
+    assert mock_search_box.send_keys.call_count == 4
     assert search_page.browser.time_wait.call_count == 4
 
 

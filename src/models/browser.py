@@ -20,19 +20,20 @@ logging.basicConfig(
     ]
 )
 
-
 logger = logging.getLogger("RPA-BROWSER")
 
 
 class Browser:
 
-    def __init__(self, headless=False, proxy=None, chrome_driver_path='/usr/local/bin/chromedriver', page_load_timeout=10) -> None:
+    def __init__(self, headless=False, proxy=None, chrome_driver_path='chromedriver', page_load_timeout=20) -> None:
         self.proxy = proxy
         self.headless = headless
         self.page_load_timeout = page_load_timeout
         self.driver = None
         self.chrome_driver_path = chrome_driver_path
+        self.window_size = (1920, 1080)
         self.set_webdriver()
+
 
     def set_chrome_options(self):
         options = Options()
@@ -43,8 +44,10 @@ class Browser:
         options.add_argument("--disable-gpu")
         options.add_argument('--disable-web-security')
         options.add_argument("--start-maximized")
+        options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--remote-debugging-port=9222')
         options.add_experimental_option("excludeSwitches", ["enable-logging"])
+        options.add_argument(f'--window-size={self.window_size[0]},{self.window_size[1]}')
         if self.proxy:
             options.add_argument(f'--proxy-server={self.proxy}')
         return options
@@ -55,8 +58,8 @@ class Browser:
         self.driver = webdriver.Chrome(service=service, options=options)
         self.driver.set_page_load_timeout(self.page_load_timeout)
 
-    def wait(self) -> WebDriverWait:
-        return WebDriverWait(self.driver, 20)
+    def wait(self, timeout=10) -> WebDriverWait:
+        return WebDriverWait(self.driver, timeout=timeout)
 
     def time_wait(self, seconds=None, quiet=False):
         if seconds is None:
@@ -78,21 +81,21 @@ class Browser:
             self.driver.execute_script("window.stop();")
             logger.warning(f"Page load timeout exceeded. Stopped loading the page: {url}")
 
-    def wait_for_element(self, selector, by=By.CSS_SELECTOR, timeout=10) -> webdriver.remote.webelement.WebElement:
-        logger.info(f"Waiting for {selector} to become visible by {by}")
+    def wait_for_element(self, selector, by=By.CSS_SELECTOR,
+                         selector_name=None) -> webdriver.remote.webelement.WebElement:
+        name_to_log = selector_name if selector_name else selector
+        logger.info(f"Waiting for {name_to_log} to become visible by {by}")
         try:
             element = self.wait().until(
                 EC.visibility_of_element_located((by, selector))
             )
-            logger.info(f"{selector} is now visible.")
+            logger.info(f"{name_to_log} is now visible.")
             return element
-
         except NoSuchElementException:
-            raise NoSuchElementException(f"No such element waiting for element: {selector}")
-
+            raise NoSuchElementException(f"No such element waiting for element: {name_to_log}")
         except TimeoutException:
-            logger.error(f"Timeout waiting for element: {selector}")
-            raise TimeoutError(f"Timeout waiting for element: {selector}")
+            logger.error(f"Timeout waiting for element: {name_to_log}")
+            raise TimeoutError(f"Timeout waiting for element: {name_to_log}")
 
     def retry_action(self, action, retries=3, delay=1):
         for attempt in range(retries):
@@ -103,28 +106,31 @@ class Browser:
                 time.sleep(delay)
         logger.error("Failed to perform the action after several retries.")
 
-    def wait_for_element_in_shadow(self, shadow_host_selector, element_selector, by=By.CSS_SELECTOR):
+    def wait_for_element_in_shadow(self, shadow_host_selector, element_selector, by=By.CSS_SELECTOR, shadow_selector_name=None, element_selector_name=None):
+        name_to_log_shadow = shadow_selector_name if shadow_selector_name else shadow_host_selector
+        name_to_log_shadow_button = element_selector_name if element_selector_name else element_selector
         try:
-            logger.info(f"Waiting for shadow host {shadow_host_selector} to be present.")
-            shadow_host = self.wait().until(
+            logger.info(f"Waiting for shadow host {name_to_log_shadow} to be present.")
+            shadow_host = self.wait(timeout=2).until(
                 EC.presence_of_element_located((by, shadow_host_selector))
             )
-            logger.info(f"Shadow host {shadow_host_selector} is present.")
 
-            logger.info(f"Accessing shadow root and looking for element {element_selector}.")
+            logger.info(f"Shadow host {name_to_log_shadow} is present.")
+
+            logger.info(f"Accessing shadow root and looking for element {name_to_log_shadow}.")
             shadow_root = self.driver.execute_script('return arguments[0].shadowRoot', shadow_host)
 
-            # Use shadow_root to find the desired element
             element = shadow_root.find_element(by, element_selector)
             self.wait().until(EC.visibility_of(element))
-            logger.info(f"Element {element_selector} found in shadow root.")
+            logger.info(f"Element {name_to_log_shadow_button} found in shadow root.")
             return element
         except TimeoutException:
-            logger.error(f"Timeout waiting for element in shadow DOM: {element_selector}")
-            raise TimeoutError(f"Timeout waiting for element in shadow DOM: {element_selector}")
+            logger.info(f"Timeout waiting for element in shadow DOM: {name_to_log_shadow_button}")
+            return None
+
         except NoSuchElementException:
-            logger.error(f"No such element in shadow DOM: {element_selector}")
-            raise NoSuchElementException(f"No such element in shadow DOM: {element_selector}")
+            logger.error(f"No such element in shadow DOM: {name_to_log_shadow_button}")
+            raise NoSuchElementException(f"No such element in shadow DOM: {name_to_log_shadow_button}")
 
     def scroll_to_element(self, element):
         self.driver.execute_script("arguments[0].scrollIntoView(true);", element)
@@ -136,21 +142,21 @@ class Browser:
         except ElementClickInterceptedException:
             if_intercepted()
 
+    def wait_for_elements(self, selector, by=By.CSS_SELECTOR, selector_name=None) -> list:
+        logger.info(f"Waiting for elements in {selector if selector_name is None else selector_name} to become visible by {by}")
+        name_to_log = selector_name if selector_name else selector
 
-
-    def wait_for_elements(self, selector, by=By.CSS_SELECTOR, timeout=10) -> list:
-        logger.info(f"Waiting for elements in {selector} to become visible by {by}")
         try:
             elements = self.wait().until(
                 EC.visibility_of_all_elements_located((by, selector))
             )
-            logger.info(f"Elements in {selector} are now visible.")
+            logger.info(f"Elements in {name_to_log} are now visible.")
             return elements
         except TimeoutException:
-            logger.error(f"Timeout waiting for elements: {selector}")
-            raise TimeoutError(f"Timeout waiting for elements: {selector}")
+            logger.error(f"Timeout waiting for elements: {name_to_log}")
+            raise TimeoutError(f"Timeout waiting for elements: {name_to_log}")
         except NoSuchElementException:
-            raise NoSuchElementException(f"No such element waiting for elements: {selector}")
+            raise NoSuchElementException(f"No such element waiting for elements: {name_to_log}")
 
     def take_screenshot(self, screenshot_name="screenshot"):
         self.driver.save_screenshot(f"{screenshot_name}.png")

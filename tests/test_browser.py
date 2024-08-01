@@ -1,9 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import  StaleElementReferenceException
 from src.models.browser import Browser
 
 

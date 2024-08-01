@@ -17,7 +17,6 @@ logging.basicConfig(
 )
 
 
-# Criação de um logger
 logger = logging.getLogger("RPA-LANDING-PAGE")
 
 
@@ -29,7 +28,7 @@ class LALandingPage:
     def find_make_search_visible_button(self):
         try:
             search_input = self.browser.wait_for_element(by=By.XPATH, selector="/html/body/ps-header/header/div["
-                                                                               "2]/button")
+                                                                               "2]/button", selector_name="Search Button")
             return search_input
         except TimeoutError:
             logger.error("Button to make search visible not found withing timeout period.")
@@ -55,7 +54,7 @@ class LALandingPage:
     def find_search_input_field(self):
         try:
             search_field = self.browser.wait_for_element(by=By.XPATH, selector="/html/body/ps-header/header/div["
-                                                                               "2]/div[2]/form/label/input")
+                                                                               "2]/div[2]/form/label/input", selector_name="Search Input Field")
             return search_field
         except TimeoutError:
             logger.error("Search field not found within timeout period.")
@@ -75,7 +74,7 @@ class LALandingPage:
 
     def find_search_submit_button(self):
         try:
-            search_button = self.browser.wait_for_element(by=By.XPATH, selector="/html/body/ps-header/header/div[2]/div[2]/form/button")
+            search_button = self.browser.wait_for_element(by=By.XPATH, selector="/html/body/ps-header/header/div[2]/div[2]/form/button", selector_name="Search Button")
             return search_button
         except TimeoutError:
             logger.error("Search button not found.")

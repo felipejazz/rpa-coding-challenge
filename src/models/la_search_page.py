@@ -1,4 +1,6 @@
 import logging
+import os
+
 import requests
 from openpyxl import Workbook
 from selenium.common import NoSuchElementException
@@ -21,7 +23,7 @@ logger = logging.getLogger("RPA-SEARCH-PAGE")
 class LASearchPage:
     def __init__(self, la_landing_page):
         self.browser = la_landing_page.browser
-        self.search_phrases = ["search phrase1", "search phrase2"]  # Example search phrases
+        self.search_phrases = ["search phrase1", "search phrase2"]
 
     def get_news(self):
         news_data = []
@@ -29,7 +31,7 @@ class LASearchPage:
         subscription_closed = False
         try:
 
-            ul_element = self.browser.wait_for_element(by=By.XPATH, selector="//ul[contains(@class, 'search-results')]")
+            ul_element = self.browser.wait_for_element(by=By.XPATH, selector="//ul[contains(@class, 'search-results')]", selector_name="News Results")
             self.browser.scroll_to_element(ul_element)
             li_elements = ul_element.find_elements(By.TAG_NAME, 'li')
             for index, li in enumerate(li_elements):
@@ -60,9 +62,7 @@ class LASearchPage:
                 title_word_count = count_words(title)
                 description_word_count = count_words(description)
 
-                # Process the data
                 words_count = title_word_count + description_word_count
-                title + description
                 has_money = bool(re.search(r'\$\d+(\.\d+)?|\d+ dollars|\d+ USD', title + description, re.IGNORECASE))
 
                 news_data.append({
@@ -101,37 +101,23 @@ class LASearchPage:
             logger.error("Image element not found within the <picture> tag.", exc_info=True)
             return None
 
-    # def select_dropdown_option(self, dropdown_selector, option):
-    #     for s
-    # except TimeoutError:
-    # logger.error("Search button not found.")
-    # logger.error(f"Image of state of browser during find search submit button timeout error saved in "
-    #              f"find_search_submit_button_timeout_error.png")
-    # self.browser.take_screenshot("find_search_submit_button_timeout_error")
-
-    # except Exception as e:
-    # logger.error(f"An unexpected error occurred: {e}")
-    # logger.error(f"Image of state of browser during find search submit button unexpected error saved in "
-    #              f"find_search_submit_button_unexpected_erro.png")
-    # self.browser.take_screenshot("find_search_submit_button_unexpected_error")
     def check_if_subscribe_popup_is_open(self, close=True):
         def action():
             shadow_host_selector = 'modality-custom-element'
             popup_selector = '.met-flyout-close'
 
-            # Acesse o elemento dentro do shadow DOM
             try:
-                close_modal = self.browser.wait_for_element_in_shadow(shadow_host_selector, popup_selector)
-                if close:
-                    close_modal.click()
-                    logger.info(f"Subscription modal was closed!")
-                    return True
+                close_modal = self.browser.wait_for_element_in_shadow(shadow_host_selector, popup_selector, shadow_selector_name="Subsription PopUp", element_selector_name="Subscription Close Button")
+                if close_modal:
+                    if close:
+                        close_modal.click()
+                        logger.info(f"Subscription modal was closed!")
+                        return True
             except NoSuchElementException:
                 logger.info("Modal not found.")
                 return False
 
         try:
-            # Tente executar a ação com retries
             return self.browser.retry_action(action, retries=3, delay=2)
         except Exception as e:
             logger.error(f"An error occurred while handling the subscription modal: {e}", exc_info=True)
@@ -142,13 +128,12 @@ class LASearchPage:
             return False
 
     def find_sort_button(self):
-        # self.check_if_subscribe_popup_is_open()
         try:
             sort_by_relevance_button = self.browser.wait_for_element(by=By.CSS_SELECTOR,
-                                                                     selector="body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > div.search-results-module-results-header > div.search-results-module-sorts > div > label > select")
+                                                                     selector="body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > div.search-results-module-results-header > div.search-results-module-sorts > div > label > select", selector_name="Sort By Button")
 
             sort_by_relevance_button.click()
-            select_newest_relevance = self.browser.wait_for_element(by=By.XPATH, selector="//option[text()='Newest']")
+            select_newest_relevance = self.browser.wait_for_element(by=By.XPATH, selector="//option[text()='Newest']", selector_name="Ascending Sorting")
             select_newest_relevance.click()
             self.browser.time_wait(2)
             logger.info("Search news sorted descending.")
@@ -165,7 +150,8 @@ class LASearchPage:
     def download_image(self, url, filename):
         try:
             response = requests.get(url)
-            with open(f"output/{filename}", 'wb') as file:
+            os.makedirs(os.path.dirname(f"output/img/{filename}"), exist_ok=True)
+            with open(f"output/img/{filename}", 'wb') as file:
                 file.write(response.content)
             logger.info(f"Image downloaded: {filename}")
         except Exception as e:
@@ -178,7 +164,6 @@ class LASearchPage:
         ws = wb.active
         ws.title = "News Data"
 
-        # Headers
         ws.append(["Title", "Date", "Description", "Picture Filename", "Words Count", "Contains Money"])
 
         for news in news_data:
@@ -191,7 +176,7 @@ class LASearchPage:
                 news["has_money"]
             ])
 
-        file_name = "news_data.xlsx"
+        file_name = "output/news_data.xlsx"
         wb.save(file_name)
         logger.info(f"Data saved to Excel file: {file_name}")
 

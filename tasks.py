@@ -1,3 +1,4 @@
+from robocorp.tasks import task
 from src.models.browser import Browser
 from src.models.la_landing_page import LALandingPage
 from src.models.la_search_page import LASearchPage
@@ -13,11 +14,9 @@ logging.basicConfig(
     ]
 )
 
-
-# Criação de um logger
 logger = logging.getLogger("RPA-MAIN")
 
-
+@task
 def main():
     logger.info("Initializing Web Browser")
     navigator = Browser(headless=True)
@@ -28,8 +27,3 @@ def main():
 
     la_search_page = LASearchPage(la_landing_page)
     la_search_page.scrap_news()
-
-
-
-if __name__ == "__main__":
-    main()
